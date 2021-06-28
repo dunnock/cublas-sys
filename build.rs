@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 fn main() {
     let mut link_path = env::var("CUBLAS_LIB_DIR").ok().map(|p| PathBuf::from(&p));
-    let mut include_path = env::var("CUBLAS_LIB_DIR").ok().map(|p| PathBuf::from(&p));
+    let mut include_path = env::var("CUBLAS_INCLUDE_DIR").ok().map(|p| PathBuf::from(&p));
     let env_cuda_path = env::var("CUDA_PATH").map(|p| PathBuf::from(&p));
 
     // First let's look through some default directories, if they exist
