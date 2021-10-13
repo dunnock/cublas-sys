@@ -1,6 +1,6 @@
 # CUDA cuBLAS Bindings
 
-This crate was auto-generated using [bindgen](https://github.com/crabtw/rust-bindgen).
+This crate was auto-generated using [bindgen](https://github.com/rust-lang/rust-bindgen).
 
 The library will search for dependencies in the following order:
 
