@@ -9,10 +9,10 @@
             
 
 pub const CUBLAS_VER_MAJOR: u32 = 11;
-pub const CUBLAS_VER_MINOR: u32 = 5;
+pub const CUBLAS_VER_MINOR: u32 = 6;
 pub const CUBLAS_VER_PATCH: u32 = 1;
-pub const CUBLAS_VER_BUILD: u32 = 109;
-pub const CUBLAS_VERSION: u32 = 11501;
+pub const CUBLAS_VER_BUILD: u32 = 51;
+pub const CUBLAS_VERSION: u32 = 11601;
 #[repr(C)]
 #[repr(align(8))]
 #[derive(Debug, Copy, Clone)]
@@ -334,7 +334,8 @@ pub enum cudaError {
     #[doc = " CUDA driver."]
     cudaErrorNoDevice = 100,
     #[doc = " This indicates that the device ordinal supplied by the user does not"]
-    #[doc = " correspond to a valid CUDA device."]
+    #[doc = " correspond to a valid CUDA device or that the action requested is"]
+    #[doc = " invalid for the specified device."]
     cudaErrorInvalidDevice = 101,
     #[doc = " This indicates that the device doesn't have a valid Grid License."]
     cudaErrorDeviceNotLicensed = 102,
@@ -411,6 +412,8 @@ pub enum cudaError {
     #[doc = " PTX. The runtime may fall back to compiling PTX if an application does not contain"]
     #[doc = " a suitable binary for the current device."]
     cudaErrorJitCompilationDisabled = 223,
+    #[doc = " This indicates that the provided execution affinity is not supported by the device."]
+    cudaErrorUnsupportedExecAffinity = 224,
     #[doc = " This indicates that the device kernel source is invalid."]
     cudaErrorInvalidSource = 300,
     #[doc = " This indicates that the file specified was not found."]
@@ -560,6 +563,17 @@ pub enum cudaError {
     #[doc = " that only supported hardware is visible during initialization via the CUDA_VISIBLE_DEVICES"]
     #[doc = " environment variable."]
     cudaErrorCompatNotSupportedOnDevice = 804,
+    #[doc = " This error indicates that the MPS client failed to connect to the MPS control daemon or the MPS server."]
+    cudaErrorMpsConnectionFailed = 805,
+    #[doc = " This error indicates that the remote procedural call between the MPS server and the MPS client failed."]
+    cudaErrorMpsRpcFailure = 806,
+    #[doc = " This error indicates that the MPS server is not ready to accept new MPS client requests."]
+    #[doc = " This error can be returned when the MPS server is in the process of recovering from a fatal failure."]
+    cudaErrorMpsServerNotReady = 807,
+    #[doc = " This error indicates that the hardware resources required to create MPS client have been exhausted."]
+    cudaErrorMpsMaxClientsReached = 808,
+    #[doc = " This error indicates the the hardware resources required to device connections have been exhausted."]
+    cudaErrorMpsMaxConnectionsReached = 809,
     #[doc = " The operation is not permitted when the stream is capturing."]
     cudaErrorStreamCaptureUnsupported = 900,
     #[doc = " The current capture sequence on the stream has been invalidated due to"]
@@ -592,6 +606,13 @@ pub enum cudaError {
     #[doc = " This error indicates that the graph update was not performed because it included"]
     #[doc = " changes which violated constraints specific to instantiated graph update."]
     cudaErrorGraphExecUpdateFailure = 910,
+    #[doc = " This indicates that an async error has occurred in a device outside of CUDA."]
+    #[doc = " If CUDA was waiting for an external device's signal before consuming shared data,"]
+    #[doc = " the external device signaled an error indicating that the data is not valid for"]
+    #[doc = " consumption. This leaves the process in an inconsistent state and any further CUDA"]
+    #[doc = " work will return the same error. To continue using CUDA, the process must be"]
+    #[doc = " terminated and relaunched."]
+    cudaErrorExternalDevice = 911,
     #[doc = " This indicates that an unknown internal error has occurred."]
     cudaErrorUnknown = 999,
     #[doc = " Any unhandled CUDA driver error is added to this value and returned via"]
@@ -613,7 +634,6 @@ pub enum cudaChannelFormatKind {
     cudaChannelFormatKindFloat = 2,
     #[doc = "< No channel format"]
     cudaChannelFormatKindNone = 3,
-    #[doc = "< Unsigned 8-bit integers, planar 4:2:0 YUV format"]
     cudaChannelFormatKindNV12 = 4,
 }
 #[doc = " CUDA Channel format descriptor"]
@@ -2935,7 +2955,7 @@ pub enum cudaDeviceAttr {
     cudaDevAttrReserved94 = 94,
     #[doc = "< Device supports launching cooperative kernels via ::cudaLaunchCooperativeKernel"]
     cudaDevAttrCooperativeLaunch = 95,
-    #[doc = "< Device can participate in cooperative kernels launched via ::cudaLaunchCooperativeKernelMultiDevice"]
+    #[doc = "< Deprecated, cudaLaunchCooperativeKernelMultiDevice is deprecated."]
     cudaDevAttrCooperativeMultiDeviceLaunch = 96,
     #[doc = "< The maximum optin shared memory per block. This value may vary by chip. See ::cudaFuncSetAttribute"]
     cudaDevAttrMaxSharedMemoryPerBlockOptin = 97,
@@ -2971,6 +2991,7 @@ pub enum cudaDeviceAttr {
     cudaDevAttrGPUDirectRDMAWritesOrdering = 118,
     #[doc = "< Handle types supported with mempool based IPC"]
     cudaDevAttrMemoryPoolSupportedHandleTypes = 119,
+    cudaDevAttrMax = 120,
 }
 #[repr(u32)]
 #[non_exhaustive]
@@ -3263,6 +3284,111 @@ fn bindgen_test_layout_cudaMemPoolPtrExportData() {
             stringify!(reserved)
         )
     );
+}
+#[doc = " Memory allocation node parameters"]
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct cudaMemAllocNodeParams {
+    #[doc = "< in: array of memory access descriptors. Used to describe peer GPU access"]
+    pub poolProps: cudaMemPoolProps,
+    #[doc = "< in: number of memory access descriptors.  Must not exceed the number of GPUs."]
+    pub accessDescs: *const cudaMemAccessDesc,
+    #[doc = "< in: Number of `accessDescs`s"]
+    pub accessDescCount: usize,
+    #[doc = "< in: size in bytes of the requested allocation"]
+    pub bytesize: usize,
+    #[doc = "< out: address of the allocation returned by CUDA"]
+    pub dptr: *mut ::libc::c_void,
+}
+#[test]
+fn bindgen_test_layout_cudaMemAllocNodeParams() {
+    assert_eq!(
+        ::std::mem::size_of::<cudaMemAllocNodeParams>(),
+        120usize,
+        concat!("Size of: ", stringify!(cudaMemAllocNodeParams))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<cudaMemAllocNodeParams>(),
+        8usize,
+        concat!("Alignment of ", stringify!(cudaMemAllocNodeParams))
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<cudaMemAllocNodeParams>())).poolProps as *const _ as usize
+        },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(cudaMemAllocNodeParams),
+            "::",
+            stringify!(poolProps)
+        )
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<cudaMemAllocNodeParams>())).accessDescs as *const _ as usize
+        },
+        88usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(cudaMemAllocNodeParams),
+            "::",
+            stringify!(accessDescs)
+        )
+    );
+    assert_eq!(
+        unsafe {
+            &(*(::std::ptr::null::<cudaMemAllocNodeParams>())).accessDescCount as *const _ as usize
+        },
+        96usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(cudaMemAllocNodeParams),
+            "::",
+            stringify!(accessDescCount)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<cudaMemAllocNodeParams>())).bytesize as *const _ as usize },
+        104usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(cudaMemAllocNodeParams),
+            "::",
+            stringify!(bytesize)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<cudaMemAllocNodeParams>())).dptr as *const _ as usize },
+        112usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(cudaMemAllocNodeParams),
+            "::",
+            stringify!(dptr)
+        )
+    );
+}
+#[repr(u32)]
+#[non_exhaustive]
+#[doc = " Graph memory attributes"]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum cudaGraphMemAttributeType {
+    #[doc = " (value type = cuuint64_t)"]
+    #[doc = " Amount of memory, in bytes, currently associated with graphs."]
+    cudaGraphMemAttrUsedMemCurrent = 1,
+    #[doc = " (value type = cuuint64_t)"]
+    #[doc = " High watermark of memory, in bytes, associated with graphs since the"]
+    #[doc = " last time it was reset.  High watermark can only be reset to zero."]
+    cudaGraphMemAttrUsedMemHigh = 2,
+    #[doc = " (value type = cuuint64_t)"]
+    #[doc = " Amount of memory, in bytes, currently allocated for use by"]
+    #[doc = " the CUDA graphs asynchronous allocator."]
+    cudaGraphMemAttrReservedMemCurrent = 3,
+    #[doc = " (value type = cuuint64_t)"]
+    #[doc = " High watermark of memory, in bytes, currently allocated for use by"]
+    #[doc = " the CUDA graphs asynchronous allocator."]
+    cudaGraphMemAttrReservedMemHigh = 4,
 }
 #[repr(u32)]
 #[non_exhaustive]
@@ -4414,7 +4540,6 @@ fn bindgen_test_layout_cudaIpcEventHandle_st() {
         )
     );
 }
-#[doc = " CUDA IPC event handle"]
 pub type cudaIpcEventHandle_t = cudaIpcEventHandle_st;
 #[doc = " CUDA IPC memory handle"]
 #[repr(C)]
@@ -4445,7 +4570,6 @@ fn bindgen_test_layout_cudaIpcMemHandle_st() {
         )
     );
 }
-#[doc = " CUDA IPC memory handle"]
 pub type cudaIpcMemHandle_t = cudaIpcMemHandle_st;
 #[repr(u32)]
 #[non_exhaustive]
@@ -6061,7 +6185,15 @@ pub enum cudaGraphNodeType {
     cudaGraphNodeTypeWaitEvent = 6,
     #[doc = "< External event record node"]
     cudaGraphNodeTypeEventRecord = 7,
-    cudaGraphNodeTypeCount = 8,
+    #[doc = "< External semaphore signal node"]
+    cudaGraphNodeTypeExtSemaphoreSignal = 8,
+    #[doc = "< External semaphore wait node"]
+    cudaGraphNodeTypeExtSemaphoreWait = 9,
+    #[doc = "< Memory allocation node"]
+    cudaGraphNodeTypeMemAlloc = 10,
+    #[doc = "< Memory free node"]
+    cudaGraphNodeTypeMemFree = 11,
+    cudaGraphNodeTypeCount = 12,
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -6129,6 +6261,14 @@ pub enum cudaGraphDebugDotFlags {
     cudaGraphDebugDotFlagsKernelNodeAttributes = 512,
     #[doc = " Adds cudaKernelNodeAttrID values to output"]
     cudaGraphDebugDotFlagsHandles = 1024,
+}
+#[repr(u32)]
+#[non_exhaustive]
+#[doc = " Flags for instantiating a graph"]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum cudaGraphInstantiateFlags {
+    #[doc = "< Automatically free memory allocated in a graph before relaunching."]
+    cudaGraphInstantiateFlagAutoFreeOnLaunch = 1,
 }
 pub type cuFloatComplex = float2;
 pub type cuDoubleComplex = double2;
@@ -6400,6 +6540,12 @@ extern "C" {
         handle: cublasHandle_t,
         smCountTarget: ::libc::c_int,
     ) -> cublasStatus_t;
+}
+extern "C" {
+    pub fn cublasGetStatusName(status: cublasStatus_t) -> *const ::libc::c_char;
+}
+extern "C" {
+    pub fn cublasGetStatusString(status: cublasStatus_t) -> *const ::libc::c_char;
 }
 pub type cublasLogCallback =
     ::std::option::Option<unsafe extern "C" fn(msg: *const ::libc::c_char)>;
