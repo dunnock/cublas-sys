@@ -1,4 +1,4 @@
-# CUBLAS Bindings
+# CUDA cuBLAS Bindings
 
 This crate was auto-generated using [bindgen](https://github.com/crabtw/rust-bindgen).
 
