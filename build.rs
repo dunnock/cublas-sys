@@ -1,4 +1,3 @@
-use pkg_config;
 use std::path::PathBuf;
 
 fn read_env_path(path: &str) -> Option<PathBuf> {
@@ -8,24 +7,20 @@ fn read_env_path(path: &str) -> Option<PathBuf> {
 fn main() {
     let mut lib_dir = read_env_path("CUBLAS_LIB_DIR");
     let mut inc_dir = read_env_path("CUBLAS_INCLUDE_DIR");
+    let cuda_path = read_env_path("CUDA_PATH").or_else(|| Some(PathBuf::from("/usr/local/cuda")));
 
-    let candidate_dirs = read_env_path("CUDA_PATH")
-        .into_iter()
-        .chain([PathBuf::from("/usr/local/cuda")]);
-
-    for path in candidate_dirs {
+    if let Some(path) = cuda_path {
         if path.is_dir() {
-            let possible_link = if path.join("lib64").is_dir() {
+            let possible_lib_dir = if path.join("lib64").is_dir() {
                 path.join("lib64")
             } else {
                 path.join("lib").join("x64")
             };
-            let possible_include = path.join("include");
+            let possible_inc_dir = path.join("include");
 
-            if possible_link.is_dir() && possible_include.is_dir() {
-                lib_dir = lib_dir.or(Some(possible_link));
-                inc_dir = inc_dir.or(Some(possible_include));
-                break;
+            if possible_lib_dir.is_dir() && possible_inc_dir.is_dir() {
+                lib_dir = lib_dir.or(Some(possible_lib_dir));
+                inc_dir = inc_dir.or(Some(possible_inc_dir));
             }
         }
     }
